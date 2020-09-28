@@ -17,7 +17,9 @@ router
 //prefill limit, sort, fields via aliasTopTours function
 
 router.route('/tour-stats').get(tourController.getToursStats);
-router.route(authController.protect, '/monthly-plan/:year').get(authController.restrictTo('admin', 'lead-guide', 'guide'),tourController.getMonthlyPlan);
+router.route('/monthly-plan/:year').get(authController.protect, authController.restrictTo('admin', 'lead-guide', 'guide'),tourController.getMonthlyPlan);
+
+router.route('/tours-within/:distance/center/:latlng/unit/:unit').get(tourController.getToursWithin);
 
 router
   .route('/')

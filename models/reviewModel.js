@@ -2,6 +2,7 @@
 //review / rating /createdAt / ref to tour / ref to user
 const mongoose = require('mongoose');
 const Tour = require('./tourModel');
+const AppError = require('../utils/appError');
 
 const reviewSchema = new mongoose.Schema({
   review: {
@@ -33,6 +34,10 @@ const reviewSchema = new mongoose.Schema({
   toObject: {virtuals: true} //the data is outputted as object
 }
 );
+
+//prevent duplicate review
+//tour & user is unique combination
+reviewSchema.index({tour: 1, user: 1}, {unique: true});
 
 //to populate guides's detail data
 reviewSchema.pre(/^find/, function(next){
@@ -67,20 +72,36 @@ reviewSchema.statics.calcAverageRatings = async function(tourId) {
       }
     }
   ]);
-  console.log(stats);
+  console.log(stats); //array: [ { _id: 5f71e8f53c9f63108ca4344f, nRating: 1, avRating: 5 } ]
 
-  Tour.findByIdAndUpdate(tourId, {
-    ratingsQuantity: stats[0].nRating,
-    ratingsAverage: stats[0].avRating
-  })
+  if(stats.length>0) {
+    await Tour.findByIdAndUpdate(tourId, {
+      ratingsQuantity: stats[0].nRating,
+      ratingsAverage: stats[0].avRating
+    });
+  } else {
+    await Tour.findByIdAndUpdate(tourId, {
+      ratingsQuantity: 0,
+      ratingsAverage: 4.5
+    });
+  }
+
 };
 
+//calculate stats when create new review
 reviewSchema.post('save', function() {
   //'this'points to current review doc
-  //Review.calcAverageRatings(this.tour) //At this point, Review is not yet defined. And if we put this pre-save hook code after the Review declaration then this reviewSchema here  would not contain this middleware, because we would then only be declaring it after the review model was already created.
+  //Review.calcAverageRatings(this.tour) //At this point, Review(model) is not yet defined. And if we put this pre-save hook code after the Review declaration then this reviewSchema here  would not contain this middleware, because we would then only be declaring it after the review model was already created.
 
-  this.constructor.calcAverageRatings(this.tour); //this.constructor stands for the model.
+  //this.constructor stands for the model. 'this' = instance, 'constructor' = class, doc(instance)'s constructor(class) is model.
+  this.constructor.calcAverageRatings(this.tour); 
 
+});
+
+//re-calculate stats when update/delte review
+//Post middleware gets the doc as the first argument. So the post middleware will get the updated review doc as an argument. 
+reviewSchema.post(/^findOneAnd/, async function(doc, next) {
+    await doc.constructor.calcAverageRatings(doc.tour); //doc.constructor stands for model
 });
 
 const Review = mongoose.model('Review', reviewSchema);

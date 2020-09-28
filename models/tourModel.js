@@ -42,7 +42,8 @@ const tourSchema = new mongoose.Schema({
     type: Number,
     default: 4.5,
     min: [1, 'Rating must be above 1.0'],
-    max: [5, 'Rating must be below 5.0']
+    max: [5, 'Rating must be below 5.0'],
+    set: val => Math.round(val * 10) /10 //4.666666, instead of 5, get 46.66666, 47, 4.7
   },
   ratingsQuantity: {
     type: Number,
@@ -85,7 +86,7 @@ const tourSchema = new mongoose.Schema({
     default: false
   },
   startLocation: {
-    //GeoJSON
+    //GeoJSON, type and coordinates are mandatory
     type: {
       type: String,
       default: 'Point',
@@ -95,7 +96,7 @@ const tourSchema = new mongoose.Schema({
     address: String,
     description: String
   },
-  locations: [
+  locations: [ 
     {
       type: {
         type: String,
@@ -127,6 +128,7 @@ it's not enough to remove the index from our code, we really need to delete it f
 //tourSchema.index({price: 1}); //1 accending order , -1 decending order
 tourSchema.index({price: 1, ratingsAverage: -1}); //compound index, can search on both individual index and on combination
 tourSchema.index({slug: 1});
+tourSchema.index({startLocation: '2dsphere'});
 
 /* virtual property
 we cannot use this virtual property in a query, because they're technically not part of the database. We could have done this conversion each time after we query the data in a controller, but that would not be recommended simply because we want to try to keep business logic and application logic much separated as possible.
